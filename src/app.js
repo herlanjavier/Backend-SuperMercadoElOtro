@@ -10,15 +10,25 @@ import { errorMiddleware } from './middlewares/error.middleware.js';
 
 const app = express();
 
-const limiter = rateLimit({
+const rateLimitMessage = {
+  ok: false,
+  message: 'Demasiadas peticiones. Espera unos segundos e intenta nuevamente.',
+};
+
+const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: env.NODE_ENV === 'production' ? 100 : 1000,
-  standardHeaders: 'draft-7',
+  max: env.NODE_ENV === 'production' ? 20 : 200,
+  standardHeaders: true,
   legacyHeaders: false,
-  message: {
-    ok: false,
-    message: 'Demasiadas peticiones. Espera unos segundos e intenta nuevamente.',
-  },
+  message: rateLimitMessage,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: env.NODE_ENV === 'production' ? 500 : 2000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitMessage,
 });
 
 app.use(helmet());
@@ -27,7 +37,9 @@ if (env.NODE_ENV !== 'test') {
   app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 }
 app.use(express.json());
-app.use(limiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register-customer', authLimiter);
+app.use('/api', apiLimiter);
 
 app.use('/api', routes);
 
