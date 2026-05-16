@@ -12,6 +12,7 @@ const envSchema = z.object({
   SUPABASE_STORAGE_BUCKET: z.string().min(1).default('product-images'),
   FRONTEND_URL: z.string().url('FRONTEND_URL debe ser una URL valida').default('http://localhost:5173'),
   FRONTEND_URLS: z.string().default(''),
+  BUSINESS_TIME_ZONE: z.string().min(1).default('America/La_Paz'),
 }).superRefine((value, ctx) => {
   if (value.SUPABASE_URL && !z.string().url().safeParse(value.SUPABASE_URL).success) {
     ctx.addIssue({
@@ -47,6 +48,16 @@ const envSchema = z.object({
         message: `FRONTEND_URLS contiene una URL invalida: ${invalidUrl}`,
       });
     }
+  }
+
+  try {
+    new Intl.DateTimeFormat('es-BO', { timeZone: value.BUSINESS_TIME_ZONE }).format(new Date());
+  } catch {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['BUSINESS_TIME_ZONE'],
+      message: 'BUSINESS_TIME_ZONE debe ser una zona horaria valida',
+    });
   }
 });
 

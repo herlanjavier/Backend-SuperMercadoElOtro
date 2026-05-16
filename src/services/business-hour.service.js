@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../config/supabase.js';
+import { env } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
 import { isBusinessOpenNow } from '../utils/businessHours.js';
 
@@ -25,9 +26,35 @@ const defaultBusinessHour = (dayOfWeek) => ({
   updated_at: null,
 });
 
-const getCurrentDayOfWeek = () => new Date().getDay();
+const getBusinessDateParts = () => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: env.BUSINESS_TIME_ZONE,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
 
-const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+};
+
+const dayIndexes = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+const getCurrentDayOfWeek = () => dayIndexes[getBusinessDateParts().weekday];
+
+const getCurrentTime = () => {
+  const parts = getBusinessDateParts();
+  return `${parts.hour}:${parts.minute}:${parts.second}`;
+};
 
 const getBusinessHourByDay = async (dayOfWeek) => {
   const { data, error } = await supabaseAdmin
