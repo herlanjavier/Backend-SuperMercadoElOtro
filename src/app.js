@@ -10,6 +10,10 @@ import { errorMiddleware } from './middlewares/error.middleware.js';
 
 const app = express();
 
+if (env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 const allowedOrigins = [
   env.FRONTEND_URL,
   ...env.FRONTEND_URLS.split(',').map((origin) => origin.trim()).filter(Boolean),
