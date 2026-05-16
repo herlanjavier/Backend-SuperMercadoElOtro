@@ -13,6 +13,7 @@ export const mockState = {
     inventory_entries: [],
     categories: [],
   },
+  signOutError: null,
 };
 
 export const resetMockSupabase = () => {
@@ -29,6 +30,7 @@ export const resetMockSupabase = () => {
     inventory_entries: [],
     categories: [],
   };
+  mockState.signOutError = null;
 };
 
 export const setMockRole = (role) => {
@@ -127,7 +129,7 @@ export const supabaseAdmin = {
   auth: {
     admin: {
       createUser: async ({ email }) => ({ data: { user: { id: '00000000-0000-4000-8000-000000000002', email } }, error: null }),
-      signOut: async () => ({ error: null }),
+      signOut: async () => ({ error: mockState.signOutError }),
     },
   },
   storage: {

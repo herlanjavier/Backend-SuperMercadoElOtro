@@ -92,11 +92,11 @@ export const logout = async (token) => {
     const { error } = await supabaseAdmin.auth.admin.signOut(token);
 
     if (error) {
-      throw new AppError(error.message, 400);
+      return { message: 'Sesion cerrada localmente', remoteRevoked: false };
     }
   }
 
-  return { message: 'Sesion cerrada correctamente' };
+  return { message: 'Sesion cerrada correctamente', remoteRevoked: Boolean(token) };
 };
 
 export const getProfileByUserId = async (userId) => {
