@@ -10,6 +10,9 @@ const mapOrderPaymentSummary = (order) => ({
   confirmedBy: order.confirmed_by,
   confirmedAt: order.confirmed_at,
   total: Number(order.total),
+  paymentProofPath: order.payment_proof_path,
+  paymentProofMimeType: order.payment_proof_mime_type,
+  paymentProofUploadedAt: order.payment_proof_uploaded_at,
 });
 
 const mapSalePaymentSummary = (sale) => ({
@@ -71,6 +74,7 @@ export const confirmQrPayment = async (orderId, confirmedBy, payload) => {
 
   if (order.status === 'confirmed') throw new AppError('El pedido ya fue confirmado', 400);
   if (order.status !== 'pending_payment') throw new AppError('El pedido no esta pendiente de pago', 400);
+  if (!order.payment_proof_path) throw new AppError('El pedido aun no tiene comprobante de pago.', 400);
 
   const { data: existingSale } = await supabaseAdmin.from('sales').select('id').eq('order_id', orderId).maybeSingle();
   if (existingSale) throw new AppError('Este pedido ya tiene una venta registrada', 400);
@@ -113,6 +117,7 @@ export const confirmQrPayment = async (orderId, confirmedBy, payload) => {
         status: 'confirmed',
         confirmed_by: confirmedBy,
         confirmed_at: now,
+        payment_notes: payload.notes ?? order.payment_notes ?? null,
       })
       .eq('id', orderId)
       .select('*')
@@ -172,7 +177,12 @@ export const confirmQrPayment = async (orderId, confirmedBy, payload) => {
 
     await supabaseAdmin
       .from('orders')
-      .update({ status: order.status, confirmed_by: order.confirmed_by, confirmed_at: order.confirmed_at })
+      .update({
+        status: order.status,
+        confirmed_by: order.confirmed_by,
+        confirmed_at: order.confirmed_at,
+        payment_notes: order.payment_notes,
+      })
       .eq('id', orderId);
 
     await restoreStock(stockMovements);
@@ -203,6 +213,9 @@ export const getPaymentStatus = async (orderId, requester) => {
     isPaid: ['confirmed', 'ready_for_pickup', 'delivered'].includes(order.status),
     confirmedAt: order.confirmed_at,
     total: Number(order.total),
+    paymentProofPath: order.payment_proof_path,
+    paymentProofMimeType: order.payment_proof_mime_type,
+    paymentProofUploadedAt: order.payment_proof_uploaded_at,
     sale: sale
       ? {
           id: sale.id,

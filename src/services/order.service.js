@@ -3,6 +3,11 @@ import { AppError } from '../utils/AppError.js';
 import { canTransitionOrderStatus } from '../utils/orderStatus.js';
 import { calculateItemSubtotal, calculateOrderTotal } from '../utils/orderTotals.js';
 import { ensureBusinessIsOpen } from './business-hour.service.js';
+import {
+  createSignedUrlForPaymentProof,
+  deletePaymentProof,
+  uploadPaymentProof,
+} from './storage.service.js';
 
 const ORDER_STATUS_OPTIONS = [
   { value: 'pending_payment', label: 'Pendiente de pago' },
@@ -11,6 +16,20 @@ const ORDER_STATUS_OPTIONS = [
   { value: 'delivered', label: 'Entregado' },
   { value: 'cancelled', label: 'Cancelado' },
 ];
+
+const FAKE_QR_IMAGES = [
+  '/assets/qr/fake-qr-1.png',
+  '/assets/qr/fake-qr-2.png',
+  '/assets/qr/fake-qr-3.png',
+];
+
+const generatePaymentQrCode = () => {
+  const date = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  const random = Math.random().toString(36).slice(2, 7).toUpperCase();
+  return `QR-${date}-${random}`;
+};
+
+const getRandomFakeQrImage = () => FAKE_QR_IMAGES[Math.floor(Math.random() * FAKE_QR_IMAGES.length)];
 
 const mapProfile = (profile) =>
   profile
@@ -43,6 +62,13 @@ const mapOrder = (order, items = [], profiles = new Map(), products = new Map())
   total: Number(order.total),
   deliveryAddress: order.delivery_address,
   deliveryReference: order.delivery_reference,
+  paymentQrCode: order.payment_qr_code,
+  paymentQrImageUrl: order.payment_qr_image_url,
+  paymentProofUrl: order.payment_proof_url,
+  paymentProofPath: order.payment_proof_path,
+  paymentProofMimeType: order.payment_proof_mime_type,
+  paymentProofUploadedAt: order.payment_proof_uploaded_at,
+  paymentNotes: order.payment_notes,
   items: items.map((item) => mapOrderItem(item, products.get(item.product_id))),
   confirmedBy: order.confirmed_by,
   confirmedAt: order.confirmed_at,
@@ -209,6 +235,8 @@ export const createOrder = async (payload, customerId) => {
         total,
         delivery_address: deliveryAddress,
         delivery_reference: deliveryReference,
+        payment_qr_code: generatePaymentQrCode(),
+        payment_qr_image_url: getRandomFakeQrImage(),
       })
       .select('*')
       .single();
@@ -437,4 +465,79 @@ export const updateDeliveryPerson = async (id, payload) => {
 
   const [mappedOrder] = await hydrateOrders([data]);
   return mappedOrder;
+};
+
+const getRawOrderById = async (id) => {
+  const { data, error } = await supabaseAdmin.from('orders').select('*').eq('id', id).single();
+
+  if (error || !data) {
+    throw new AppError('Pedido no encontrado', 404);
+  }
+
+  return data;
+};
+
+const ensureCanAccessOrder = (order, requester) => {
+  if (requester.role === 'customer' && order.customer_id !== requester.id) {
+    throw new AppError('No tienes permiso para ver este pedido', 403);
+  }
+};
+
+export const uploadOrderPaymentProof = async (id, file, requester) => {
+  const order = await getRawOrderById(id);
+
+  if (requester.role !== 'customer' || order.customer_id !== requester.id) {
+    throw new AppError('Solo el cliente del pedido puede subir comprobante.', 403);
+  }
+
+  if (order.status !== 'pending_payment') {
+    throw new AppError('Solo puedes subir comprobante si el pedido esta pendiente de pago.', 400);
+  }
+
+  const uploaded = await uploadPaymentProof(file, id);
+  const uploadedAt = new Date().toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from('orders')
+    .update({
+      payment_proof_url: null,
+      payment_proof_path: uploaded.path,
+      payment_proof_mime_type: uploaded.mimeType,
+      payment_proof_uploaded_at: uploadedAt,
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    await deletePaymentProof(uploaded.path).catch(() => null);
+    throw new AppError(error?.message || 'No se pudo guardar el comprobante.', 400);
+  }
+
+  if (order.payment_proof_path) {
+    await deletePaymentProof(order.payment_proof_path).catch(() => null);
+  }
+
+  return {
+    id: data.id,
+    status: data.status,
+    paymentProofPath: data.payment_proof_path,
+    paymentProofMimeType: data.payment_proof_mime_type,
+    paymentProofUploadedAt: data.payment_proof_uploaded_at,
+  };
+};
+
+export const getOrderPaymentProof = async (id, requester) => {
+  const order = await getRawOrderById(id);
+  ensureCanAccessOrder(order, requester);
+
+  if (!order.payment_proof_path) {
+    throw new AppError('El pedido aun no tiene comprobante de pago.', 400);
+  }
+
+  return {
+    url: await createSignedUrlForPaymentProof(order.payment_proof_path),
+    mimeType: order.payment_proof_mime_type,
+    uploadedAt: order.payment_proof_uploaded_at,
+  };
 };

@@ -137,6 +137,7 @@ export const supabaseAdmin = {
       upload: async () => ({ error: null }),
       remove: async () => ({ error: null }),
       getPublicUrl: (path) => ({ data: { publicUrl: `https://storage.test/${path}` } }),
+      createSignedUrl: async (path) => ({ data: { signedUrl: `https://storage.test/signed/${path}` }, error: null }),
     }),
   },
 };

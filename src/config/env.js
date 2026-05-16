@@ -10,6 +10,7 @@ const envSchema = z.object({
   SUPABASE_PUBLISHABLE_KEY: z.string().default(''),
   SUPABASE_SERVICE_ROLE_KEY: z.string().default(''),
   SUPABASE_STORAGE_BUCKET: z.string().min(1).default('product-images'),
+  SUPABASE_PAYMENT_PROOFS_BUCKET: z.string().min(1).default('payment-proofs'),
   FRONTEND_URL: z.string().url('FRONTEND_URL debe ser una URL valida').default('http://localhost:5173'),
   FRONTEND_URLS: z.string().default(''),
   BUSINESS_TIME_ZONE: z.string().min(1).default('America/La_Paz'),

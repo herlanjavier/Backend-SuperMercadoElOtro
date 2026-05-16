@@ -2,9 +2,11 @@ import {
   cancelOrder,
   createOrder,
   getOrderById,
+  getOrderPaymentProof,
   getOrderStatusOptions,
   listMyOrders,
   listOrders,
+  uploadOrderPaymentProof,
   updateDeliveryPerson,
   updateOrderStatus,
 } from '../services/order.service.js';
@@ -52,6 +54,18 @@ export const listOrdersController = asyncHandler(async (req, res) => {
 
 export const getOrderByIdController = asyncHandler(async (req, res) => {
   const data = await getOrderById(req.params.id, getRequester(req));
+
+  res.status(200).json({ ok: true, data });
+});
+
+export const uploadOrderPaymentProofController = asyncHandler(async (req, res) => {
+  const data = await uploadOrderPaymentProof(req.params.id, req.file, getRequester(req));
+
+  res.status(200).json({ ok: true, data });
+});
+
+export const getOrderPaymentProofController = asyncHandler(async (req, res) => {
+  const data = await getOrderPaymentProof(req.params.id, getRequester(req));
 
   res.status(200).json({ ok: true, data });
 });
