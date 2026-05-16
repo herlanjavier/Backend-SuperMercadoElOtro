@@ -10,6 +10,11 @@ import { errorMiddleware } from './middlewares/error.middleware.js';
 
 const app = express();
 
+const allowedOrigins = [
+  env.FRONTEND_URL,
+  ...env.FRONTEND_URLS.split(',').map((origin) => origin.trim()).filter(Boolean),
+];
+
 const rateLimitMessage = {
   ok: false,
   message: 'Demasiadas peticiones. Espera unos segundos e intenta nuevamente.',
@@ -32,7 +37,17 @@ const apiLimiter = rateLimit({
 });
 
 app.use(helmet());
-app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Origen no permitido por CORS'));
+  },
+  credentials: true,
+}));
 if (env.NODE_ENV !== 'test') {
   app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 }

@@ -11,6 +11,7 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().default(''),
   SUPABASE_STORAGE_BUCKET: z.string().min(1).default('product-images'),
   FRONTEND_URL: z.string().url('FRONTEND_URL debe ser una URL valida').default('http://localhost:5173'),
+  FRONTEND_URLS: z.string().default(''),
 }).superRefine((value, ctx) => {
   if (value.SUPABASE_URL && !z.string().url().safeParse(value.SUPABASE_URL).success) {
     ctx.addIssue({
@@ -29,6 +30,22 @@ const envSchema = z.object({
           message: `${key} es requerida en produccion`,
         });
       }
+    }
+  }
+
+  if (value.FRONTEND_URLS) {
+    const invalidUrl = value.FRONTEND_URLS
+      .split(',')
+      .map((url) => url.trim())
+      .filter(Boolean)
+      .find((url) => !z.string().url().safeParse(url).success);
+
+    if (invalidUrl) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['FRONTEND_URLS'],
+        message: `FRONTEND_URLS contiene una URL invalida: ${invalidUrl}`,
+      });
     }
   }
 });
