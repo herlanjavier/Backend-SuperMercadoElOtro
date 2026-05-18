@@ -11,7 +11,7 @@ const mapCategory = (category) => ({
 });
 
 export const listCategories = async ({ includeInactive }, requesterProfile) => {
-  const canSeeInactive = ['admin', 'sales_manager'].includes(requesterProfile.role);
+  const canSeeInactive = ['admin', 'sales_manager'].includes(requesterProfile?.role);
   let query = supabaseAdmin.from('categories').select('*').order('name', { ascending: true });
 
   if (!includeInactive || !canSeeInactive) {

@@ -46,7 +46,7 @@ const toProductPayload = (payload) => {
 };
 
 const applyProductFilters = (query, filters, requesterProfile) => {
-  const canSeeInactive = ['admin', 'sales_manager'].includes(requesterProfile.role);
+  const canSeeInactive = ['admin', 'sales_manager'].includes(requesterProfile?.role);
 
   if (!filters.includeInactive || !canSeeInactive) {
     query = query.eq('is_active', true);
@@ -69,6 +69,7 @@ const applyProductFilters = (query, filters, requesterProfile) => {
 };
 
 export const listProducts = async (filters, requesterProfile) => {
+  const canUseStockFilters = ['admin', 'sales_manager'].includes(requesterProfile?.role);
   let query = supabaseAdmin.from('products').select(productSelect).order('created_at', { ascending: false });
   query = applyProductFilters(query, filters, requesterProfile);
 
@@ -80,11 +81,11 @@ export const listProducts = async (filters, requesterProfile) => {
 
   let products = data;
 
-  if (filters.lowStock) {
+  if (filters.lowStock && canUseStockFilters) {
     products = products.filter((product) => product.stock <= product.min_stock);
   }
 
-  if (filters.criticalStock) {
+  if (filters.criticalStock && canUseStockFilters) {
     products = products.filter((product) => product.stock <= product.critical_stock);
   }
 
@@ -94,7 +95,7 @@ export const listProducts = async (filters, requesterProfile) => {
 export const getProductById = async (id, requesterProfile) => {
   let query = supabaseAdmin.from('products').select(productSelect).eq('id', id);
 
-  if (!['admin', 'sales_manager'].includes(requesterProfile.role)) {
+  if (!['admin', 'sales_manager'].includes(requesterProfile?.role)) {
     query = query.eq('is_active', true);
   }
 

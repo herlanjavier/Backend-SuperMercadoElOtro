@@ -9,8 +9,8 @@ import {
   restoreProductController,
   updateProductController,
 } from '../controllers/product.controller.js';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
-import { requireRole } from '../middlewares/role.middleware.js';
+import { authMiddleware, optionalAuthMiddleware } from '../middlewares/auth.middleware.js';
+import { attachProfileIfAuthenticated, requireRole } from '../middlewares/role.middleware.js';
 import { AppError } from '../utils/AppError.js';
 
 const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -32,10 +32,9 @@ const upload = multer({
 
 const router = Router();
 
+router.get('/', optionalAuthMiddleware, attachProfileIfAuthenticated, listProductsController);
+router.get('/:id', optionalAuthMiddleware, attachProfileIfAuthenticated, getProductByIdController);
 router.use(authMiddleware);
-
-router.get('/', requireRole('admin', 'sales_manager', 'customer'), listProductsController);
-router.get('/:id', requireRole('admin', 'sales_manager', 'customer'), getProductByIdController);
 router.post('/', requireRole('admin'), upload.single('image'), createProductController);
 router.patch('/:id', requireRole('admin'), upload.single('image'), updateProductController);
 router.delete('/:id', requireRole('admin'), deactivateProductController);

@@ -5,14 +5,13 @@ import {
   listCategoriesController,
   updateCategoryController,
 } from '../controllers/category.controller.js';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
-import { requireRole } from '../middlewares/role.middleware.js';
+import { authMiddleware, optionalAuthMiddleware } from '../middlewares/auth.middleware.js';
+import { attachProfileIfAuthenticated, requireRole } from '../middlewares/role.middleware.js';
 
 const router = Router();
 
+router.get('/', optionalAuthMiddleware, attachProfileIfAuthenticated, listCategoriesController);
 router.use(authMiddleware);
-
-router.get('/', requireRole('admin', 'sales_manager', 'customer'), listCategoriesController);
 router.post('/', requireRole('admin'), createCategoryController);
 router.patch('/:id', requireRole('admin'), updateCategoryController);
 router.delete('/:id', requireRole('admin'), deactivateCategoryController);

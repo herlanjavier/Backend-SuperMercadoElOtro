@@ -19,8 +19,8 @@ const ORDER_STATUS_OPTIONS = [
 
 const FAKE_QR_IMAGES = [
   '/assets/qr/fake-qr-1.png',
-  '/assets/qr/fake-qr-2.png',
-  '/assets/qr/fake-qr-3.png',
+  '/assets/qr/fake-qr-1.png',
+  '/assets/qr/fake-qr-1.png',
 ];
 
 const generatePaymentQrCode = () => {

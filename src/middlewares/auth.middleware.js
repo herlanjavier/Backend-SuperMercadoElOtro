@@ -26,3 +26,29 @@ export const authMiddleware = asyncHandler(async (req, _res, next) => {
 
   next();
 });
+
+export const optionalAuthMiddleware = asyncHandler(async (req, _res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader?.startsWith('Bearer ')) {
+    next();
+    return;
+  }
+
+  const token = authHeader.split(' ')[1];
+  const { data, error } = await supabasePublic.auth.getUser(token);
+
+  if (error || !data?.user) {
+    next();
+    return;
+  }
+
+  req.user = {
+    id: data.user.id,
+    email: data.user.email,
+    aud: data.user.aud,
+    role: data.user.role,
+  };
+
+  next();
+});

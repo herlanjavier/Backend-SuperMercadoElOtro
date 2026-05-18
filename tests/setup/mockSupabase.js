@@ -73,16 +73,20 @@ const createBuilder = (table) => {
       this._data = this._data.filter((row) => values.includes(row[column]));
       return this;
     },
-    gte() {
+    gte(column, value) {
+      this._data = this._data.filter((row) => row[column] >= value);
       return this;
     },
-    lte() {
+    lte(column, value) {
+      this._data = this._data.filter((row) => row[column] <= value);
       return this;
     },
-    lt() {
+    lt(column, value) {
+      this._data = this._data.filter((row) => row[column] < value);
       return this;
     },
-    gt() {
+    gt(column, value) {
+      this._data = this._data.filter((row) => row[column] > value);
       return this;
     },
     or() {
