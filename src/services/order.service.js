@@ -73,6 +73,12 @@ const mapOrder = (order, items = [], profiles = new Map(), products = new Map())
   confirmedBy: order.confirmed_by,
   confirmedAt: order.confirmed_at,
   deliveredAt: order.delivered_at,
+  deliveryPersonFirstName: order.delivery_person_first_name,
+  deliveryPersonLastName: order.delivery_person_last_name,
+  deliveryPersonCi: order.delivery_person_ci,
+  deliveryPersonVehicleType: order.delivery_person_vehicle_type,
+  deliveryPersonPlate: order.delivery_person_plate,
+  deliveryPersonPhone: order.delivery_person_phone,
   deliveryPerson: order.delivery_person_first_name
     ? {
         firstName: order.delivery_person_first_name,
