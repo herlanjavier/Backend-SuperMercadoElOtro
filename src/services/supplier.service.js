@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { AppError } from '../utils/AppError.js';
+import { buildPaginatedResponse, getPaginationRange } from '../utils/pagination.js';
 
 const mapSupplier = (supplier, products = []) => ({
   id: supplier.id,
@@ -92,8 +93,12 @@ const replaceSupplierProducts = async (supplierId, productIds = []) => {
   }
 };
 
-export const listSuppliers = async ({ search, includeInactive }) => {
-  let query = supabaseAdmin.from('suppliers').select('*').order('created_at', { ascending: false });
+export const listSuppliers = async ({ search, includeInactive }, pagination) => {
+  const { from, to } = getPaginationRange(pagination.page, pagination.limit);
+  let query = supabaseAdmin
+    .from('suppliers')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false });
 
   if (!includeInactive) {
     query = query.eq('is_active', true);
@@ -104,7 +109,9 @@ export const listSuppliers = async ({ search, includeInactive }) => {
     query = query.or(`name.ilike.${term},phone.ilike.${term},description.ilike.${term}`);
   }
 
-  const { data, error } = await query;
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
 
   if (error) {
     throw new AppError(error.message, 400);
@@ -112,7 +119,12 @@ export const listSuppliers = async ({ search, includeInactive }) => {
 
   const productsMap = await getSupplierProductsMap(data.map((supplier) => supplier.id));
 
-  return data.map((supplier) => mapSupplier(supplier, productsMap.get(supplier.id) || []));
+  return buildPaginatedResponse(
+    data.map((supplier) => mapSupplier(supplier, productsMap.get(supplier.id) || [])),
+    pagination.page,
+    pagination.limit,
+    count ?? 0,
+  );
 };
 
 export const getSupplierById = async (id) => {

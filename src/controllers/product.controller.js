@@ -14,10 +14,11 @@ import {
 } from '../validators/product.validators.js';
 import { AppError } from '../utils/AppError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getPaginationParams } from '../utils/pagination.js';
 
 export const listProductsController = asyncHandler(async (req, res) => {
   const filters = productQuerySchema.parse(req.query);
-  const data = await listProducts(filters, req.profile);
+  const data = await listProducts(filters, req.profile, getPaginationParams(req.query));
 
   res.status(200).json({ ok: true, data });
 });

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { AppError } from '../utils/AppError.js';
+import { buildPaginatedResponse, getPaginationRange } from '../utils/pagination.js';
 
 const profileSelect = '*';
 
@@ -75,8 +76,12 @@ export const createSalesManager = async (payload) => {
   };
 };
 
-export const listUsers = async ({ role, search, isActive }) => {
-  let query = supabaseAdmin.from('profiles').select(profileSelect).order('created_at', { ascending: false });
+export const listUsers = async ({ role, search, isActive }, pagination) => {
+  const { from, to } = getPaginationRange(pagination.page, pagination.limit);
+  let query = supabaseAdmin
+    .from('profiles')
+    .select(profileSelect, { count: 'exact' })
+    .order('created_at', { ascending: false });
 
   if (role) {
     query = query.eq('role', role);
@@ -91,13 +96,15 @@ export const listUsers = async ({ role, search, isActive }) => {
     query = query.or(`first_name.ilike.${term},last_name.ilike.${term},ci.ilike.${term},phone.ilike.${term}`);
   }
 
-  const { data, error } = await query;
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
 
   if (error) {
     throw new AppError(error.message, 400);
   }
 
-  return data;
+  return buildPaginatedResponse(data, pagination.page, pagination.limit, count ?? 0);
 };
 
 export const getUserById = async (id, requester) => {

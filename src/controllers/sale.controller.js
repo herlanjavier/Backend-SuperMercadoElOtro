@@ -2,6 +2,7 @@ import { getSaleById, getSaleByOrderId, getSaleReceipt, listSales } from '../ser
 import { createReceiptPdf } from '../services/pdf.service.js';
 import { saleQuerySchema } from '../validators/sale.validators.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getPaginationParams } from '../utils/pagination.js';
 
 const getRequester = (req) => ({
   id: req.user.id,
@@ -10,7 +11,7 @@ const getRequester = (req) => ({
 
 export const listSalesController = asyncHandler(async (req, res) => {
   const query = saleQuerySchema.parse(req.query);
-  const data = await listSales(query);
+  const data = await listSales(query, getPaginationParams(req.query));
 
   res.status(200).json({ ok: true, data });
 });

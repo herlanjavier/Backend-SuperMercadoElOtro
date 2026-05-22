@@ -65,6 +65,10 @@ const createBuilder = (table) => {
     limit() {
       return this;
     },
+    range(from, to) {
+      this._data = this._data.slice(from, to + 1);
+      return this;
+    },
     eq(column, value) {
       this._data = this._data.filter((row) => row[column] === value);
       return this;
@@ -78,7 +82,8 @@ const createBuilder = (table) => {
       return this;
     },
     lte(column, value) {
-      this._data = this._data.filter((row) => row[column] <= value);
+      const comparisonValue = (row) => (typeof value === 'string' && row[value] !== undefined ? row[value] : value);
+      this._data = this._data.filter((row) => row[column] <= comparisonValue(row));
       return this;
     },
     lt(column, value) {
@@ -93,6 +98,12 @@ const createBuilder = (table) => {
       return this;
     },
     ilike() {
+      return this;
+    },
+    filter(column, operator, value) {
+      if (operator === 'lte') return this.lte(column, value);
+      if (operator === 'gte') return this.gte(column, value);
+      if (operator === 'eq') return this.eq(column, value);
       return this;
     },
     like() {

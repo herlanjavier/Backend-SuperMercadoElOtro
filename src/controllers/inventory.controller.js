@@ -15,10 +15,11 @@ import {
   notificationQuerySchema,
 } from '../validators/inventory.validators.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getPaginationParams } from '../utils/pagination.js';
 
 export const listInventoryEntriesController = asyncHandler(async (req, res) => {
   const query = inventoryEntryQuerySchema.parse(req.query);
-  const data = await listInventoryEntries(query);
+  const data = await listInventoryEntries(query, getPaginationParams(req.query));
   res.status(200).json({ ok: true, data });
 });
 
@@ -46,7 +47,7 @@ export const listLowStockProductsController = asyncHandler(async (req, res) => {
 
 export const listLowStockNotificationsController = asyncHandler(async (req, res) => {
   const query = notificationQuerySchema.parse(req.query);
-  const data = await listLowStockNotifications(query);
+  const data = await listLowStockNotifications(query, getPaginationParams(req.query));
   res.status(200).json({ ok: true, data });
 });
 

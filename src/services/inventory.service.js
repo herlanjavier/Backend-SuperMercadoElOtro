@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { AppError } from '../utils/AppError.js';
+import { buildPaginatedResponse, getPaginationRange } from '../utils/pagination.js';
 import { getStockStatus } from './product.service.js';
 
 const mapProductSummary = (product) =>
@@ -108,8 +109,12 @@ const hydrateEntries = async (entries) => {
   }));
 };
 
-export const listInventoryEntries = async (filters) => {
-  let query = supabaseAdmin.from('inventory_entries').select('*').order('received_at', { ascending: false });
+export const listInventoryEntries = async (filters, pagination) => {
+  const { from, to } = getPaginationRange(pagination.page, pagination.limit);
+  let query = supabaseAdmin
+    .from('inventory_entries')
+    .select('*', { count: 'exact' })
+    .order('received_at', { ascending: false });
 
   if (filters.productId) query = query.eq('product_id', filters.productId);
   if (filters.supplierId) query = query.eq('supplier_id', filters.supplierId);
@@ -125,20 +130,33 @@ export const listInventoryEntries = async (filters) => {
   if (filters.from) query = query.gte('received_at', new Date(filters.from).toISOString());
   if (filters.to) query = query.lte('received_at', new Date(filters.to).toISOString());
 
-  const { data, error } = await query;
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    const [{ data: products, error: productsError }, { data: suppliers, error: suppliersError }] = await Promise.all([
+      supabaseAdmin.from('products').select('id').ilike('name', term),
+      supabaseAdmin.from('suppliers').select('id').ilike('name', term),
+    ]);
+
+    if (productsError) throw new AppError(productsError.message, 400);
+    if (suppliersError) throw new AppError(suppliersError.message, 400);
+
+    const productIds = products.map((product) => product.id);
+    const supplierIds = suppliers.map((supplier) => supplier.id);
+    const conditions = [`notes.ilike.${term}`];
+    if (productIds.length > 0) conditions.push(`product_id.in.(${productIds.join(',')})`);
+    if (supplierIds.length > 0) conditions.push(`supplier_id.in.(${supplierIds.join(',')})`);
+    query = query.or(conditions.join(','));
+  }
+
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
 
   if (error) throw new AppError(error.message, 400);
 
-  let entries = await hydrateEntries(data);
+  const entries = await hydrateEntries(data);
 
-  if (filters.search) {
-    const term = filters.search.toLowerCase();
-    entries = entries.filter((entry) =>
-      [entry.product?.name, entry.supplier?.name, entry.notes].some((value) => value?.toLowerCase().includes(term)),
-    );
-  }
-
-  return entries.map(mapInventoryEntry);
+  return buildPaginatedResponse(entries.map(mapInventoryEntry), pagination.page, pagination.limit, count ?? 0);
 };
 
 export const getInventoryEntryById = async (id) => {
@@ -325,23 +343,34 @@ export const listLowStockProducts = async ({ type, includeOutOfStock }) => {
     });
 };
 
-export const listLowStockNotifications = async ({ isRead, type }) => {
-  let query = supabaseAdmin.from('low_stock_notifications').select('*').order('created_at', { ascending: false });
+export const listLowStockNotifications = async ({ isRead, type }, pagination) => {
+  const { from, to } = getPaginationRange(pagination.page, pagination.limit);
+  let query = supabaseAdmin
+    .from('low_stock_notifications')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false });
 
   if (isRead !== undefined) query = query.eq('is_read', isRead);
   if (type) query = query.eq('alert_type', type);
 
-  const { data, error } = await query;
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
 
   if (error) throw new AppError(error.message, 400);
 
   const products = await getProductsByIds(data.map((notification) => notification.product_id));
 
-  return data.map((notification) =>
-    mapNotification({
-      ...notification,
-      product: products.get(notification.product_id) || null,
-    }),
+  return buildPaginatedResponse(
+    data.map((notification) =>
+      mapNotification({
+        ...notification,
+        product: products.get(notification.product_id) || null,
+      }),
+    ),
+    pagination.page,
+    pagination.limit,
+    count ?? 0,
   );
 };
 

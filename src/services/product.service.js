@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { AppError } from '../utils/AppError.js';
+import { buildPaginatedResponse, getPaginationRange } from '../utils/pagination.js';
 import { getStockStatus } from '../utils/stockStatus.js';
 import { deleteProductImage, uploadProductImage } from './storage.service.js';
 
@@ -68,28 +69,30 @@ const applyProductFilters = (query, filters, requesterProfile) => {
   return query;
 };
 
-export const listProducts = async (filters, requesterProfile) => {
+export const listProducts = async (filters, requesterProfile, pagination) => {
   const canUseStockFilters = ['admin', 'sales_manager'].includes(requesterProfile?.role);
-  let query = supabaseAdmin.from('products').select(productSelect).order('created_at', { ascending: false });
+  const { from, to } = getPaginationRange(pagination.page, pagination.limit);
+  let query = supabaseAdmin
+    .from('products')
+    .select(productSelect, { count: 'exact' })
+    .order('created_at', { ascending: false });
   query = applyProductFilters(query, filters, requesterProfile);
 
-  const { data, error } = await query;
+  if (canUseStockFilters && filters.criticalStock) {
+    query = query.filter('stock', 'lte', 'critical_stock');
+  } else if (canUseStockFilters && filters.lowStock) {
+    query = query.filter('stock', 'lte', 'min_stock');
+  }
+
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
 
   if (error) {
     throw new AppError(error.message, 400);
   }
 
-  let products = data;
-
-  if (filters.lowStock && canUseStockFilters) {
-    products = products.filter((product) => product.stock <= product.min_stock);
-  }
-
-  if (filters.criticalStock && canUseStockFilters) {
-    products = products.filter((product) => product.stock <= product.critical_stock);
-  }
-
-  return products.map(mapProduct);
+  return buildPaginatedResponse(data.map(mapProduct), pagination.page, pagination.limit, count ?? 0);
 };
 
 export const getProductById = async (id, requesterProfile) => {

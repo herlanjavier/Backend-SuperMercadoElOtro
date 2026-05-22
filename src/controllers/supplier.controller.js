@@ -15,10 +15,11 @@ import {
   updateSupplierSchema,
 } from '../validators/supplier.validators.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getPaginationParams } from '../utils/pagination.js';
 
 export const listSuppliersController = asyncHandler(async (req, res) => {
   const query = supplierQuerySchema.parse(req.query);
-  const data = await listSuppliers(query);
+  const data = await listSuppliers(query, getPaginationParams(req.query));
   res.status(200).json({ ok: true, data });
 });
 

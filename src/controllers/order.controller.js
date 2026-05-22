@@ -25,6 +25,7 @@ import {
   updateBusinessHourSchema,
 } from '../validators/order.validators.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getPaginationParams } from '../utils/pagination.js';
 
 const getRequester = (req) => ({
   id: req.user.id,
@@ -40,14 +41,14 @@ export const createOrderController = asyncHandler(async (req, res) => {
 
 export const listMyOrdersController = asyncHandler(async (req, res) => {
   const query = orderQuerySchema.parse(req.query);
-  const data = await listMyOrders(query, req.user.id);
+  const data = await listMyOrders(query, req.user.id, getPaginationParams(req.query));
 
   res.status(200).json({ ok: true, data });
 });
 
 export const listOrdersController = asyncHandler(async (req, res) => {
   const query = adminOrderQuerySchema.parse(req.query);
-  const data = await listOrders(query);
+  const data = await listOrders(query, getPaginationParams(req.query));
 
   res.status(200).json({ ok: true, data });
 });

@@ -2,6 +2,7 @@ import { supabaseAdmin } from '../config/supabase.js';
 import { AppError } from '../utils/AppError.js';
 import { canTransitionOrderStatus } from '../utils/orderStatus.js';
 import { calculateItemSubtotal, calculateOrderTotal } from '../utils/orderTotals.js';
+import { buildPaginatedResponse, getPaginationRange } from '../utils/pagination.js';
 import { ensureBusinessIsOpen } from './business-hour.service.js';
 import {
   createSignedUrlForPaymentProof,
@@ -277,25 +278,27 @@ export const createOrder = async (payload, customerId) => {
   }
 };
 
-export const listMyOrders = async (filters, customerId) => {
+export const listMyOrders = async (filters, customerId, pagination) => {
+  const { from, to } = getPaginationRange(pagination.page, pagination.limit);
   let query = supabaseAdmin
     .from('orders')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('customer_id', customerId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(from, to);
 
   query = applyOrderDateFilters(query, filters);
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
 
   if (error) {
     throw new AppError(error.message, 400);
   }
 
-  return hydrateOrders(data);
+  return buildPaginatedResponse(await hydrateOrders(data), pagination.page, pagination.limit, count ?? 0);
 };
 
-export const listOrders = async (filters) => {
+export const listOrders = async (filters, pagination) => {
   let customerIds = null;
 
   if (filters.search) {
@@ -311,22 +314,29 @@ export const listOrders = async (filters) => {
 
     customerIds = profiles.map((profile) => profile.id);
 
-    if (customerIds.length === 0) return [];
+    if (customerIds.length === 0) {
+      return buildPaginatedResponse([], pagination.page, pagination.limit, 0);
+    }
   }
 
-  let query = supabaseAdmin.from('orders').select('*').order('created_at', { ascending: false });
+  const { from, to } = getPaginationRange(pagination.page, pagination.limit);
+  let query = supabaseAdmin
+    .from('orders')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false });
   query = applyOrderDateFilters(query, filters);
 
   if (filters.customerId) query = query.eq('customer_id', filters.customerId);
   if (customerIds) query = query.in('customer_id', customerIds);
+  query = query.range(from, to);
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
 
   if (error) {
     throw new AppError(error.message, 400);
   }
 
-  return hydrateOrders(data);
+  return buildPaginatedResponse(await hydrateOrders(data), pagination.page, pagination.limit, count ?? 0);
 };
 
 export const getOrderById = async (id, requester) => {

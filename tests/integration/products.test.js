@@ -49,12 +49,15 @@ describe('products integration', () => {
     const response = await request(app).get('/api/products');
 
     expect(response.status).toBe(200);
-    expect(response.body.data.map((product) => product.id)).toEqual(['active-product', 'empty-product']);
+    expect(response.body.data.items.map((product) => product.id)).toEqual(['active-product', 'empty-product']);
+    expect(response.body.data.pagination).toEqual(
+      expect.objectContaining({ page: 1, limit: 20, totalPages: 1, hasNextPage: false }),
+    );
 
     const availableResponse = await request(app).get('/api/products?onlyAvailable=true');
 
     expect(availableResponse.status).toBe(200);
-    expect(availableResponse.body.data.map((product) => product.id)).toEqual(['active-product']);
+    expect(availableResponse.body.data.items.map((product) => product.id)).toEqual(['active-product']);
   });
 
   test('GET /api/products anonimo ignora includeInactive y filtros de stock administrativos', async () => {
@@ -97,7 +100,7 @@ describe('products integration', () => {
     const response = await request(app).get('/api/products?includeInactive=true&lowStock=true&criticalStock=true');
 
     expect(response.status).toBe(200);
-    expect(response.body.data.map((product) => product.id)).toEqual(['normal-product', 'low-product']);
+    expect(response.body.data.items.map((product) => product.id)).toEqual(['normal-product', 'low-product']);
   });
 
   test('POST /api/products sin token responde 401', async () => {

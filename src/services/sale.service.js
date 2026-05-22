@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { AppError } from '../utils/AppError.js';
+import { buildPaginatedResponse, getPaginationRange } from '../utils/pagination.js';
 import { buildReceiptData } from './receipt.service.js';
 
 const mapProfile = (profile) =>
@@ -101,7 +102,7 @@ const validateSaleAccess = (sale, requester) => {
   }
 };
 
-export const listSales = async (filters) => {
+export const listSales = async (filters, pagination = null) => {
   let customerIds = null;
 
   if (filters.search) {
@@ -115,7 +116,7 @@ export const listSales = async (filters) => {
     customerIds = profiles.map((profile) => profile.id);
   }
 
-  let query = supabaseAdmin.from('sales').select('*').order('sold_at', { ascending: false });
+  let query = supabaseAdmin.from('sales').select('*', { count: 'exact' }).order('sold_at', { ascending: false });
 
   if (filters.from) query = query.gte('sold_at', new Date(filters.from).toISOString());
   if (filters.to) query = query.lte('sold_at', new Date(filters.to).toISOString());
@@ -131,10 +132,16 @@ export const listSales = async (filters) => {
     );
   }
 
-  const { data, error } = await query;
+  if (pagination) {
+    const { from, to } = getPaginationRange(pagination.page, pagination.limit);
+    query = query.range(from, to);
+  }
+
+  const { data, error, count } = await query;
 
   if (error) throw new AppError(error.message, 400);
-  return hydrateSales(data);
+  const sales = await hydrateSales(data);
+  return pagination ? buildPaginatedResponse(sales, pagination.page, pagination.limit, count ?? 0) : sales;
 };
 
 export const getSaleById = async (id, requester) => {

@@ -11,6 +11,7 @@ import {
   updateUserSchema,
 } from '../validators/user.validators.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getPaginationParams } from '../utils/pagination.js';
 
 const getRequester = (req) => ({
   user: req.user,
@@ -26,7 +27,7 @@ export const createSalesManagerController = asyncHandler(async (req, res) => {
 
 export const listUsersController = asyncHandler(async (req, res) => {
   const query = listUsersQuerySchema.parse(req.query);
-  const data = await listUsers(query);
+  const data = await listUsers(query, getPaginationParams(req.query));
 
   res.status(200).json({ ok: true, data });
 });
